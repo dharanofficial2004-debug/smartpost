@@ -8,19 +8,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: {
-    template: "%s | SmartPost",
-    default: "SmartPost | Custom AI Solutions For Modern Agencies",
-  },
-  description:
-    "SmartPost builds custom AI agents for digital marketing agencies to save time and increase efficiency. From WhatsApp lead qualifiers to automated social media posting and cold email outreach.",
+  title: "AI Reddit Marketing Tool | Find Customers on Reddit",
+  description: "AI-powered Reddit marketing and lead generation platform. Discover subreddits, monitor conversations, find buying intent posts, and grow your business.",
   keywords: [
-    "SmartPost",
-    "AI Agent Agency",
-    "Social media automation",
-    "WhatsApp AI Agent",
-    "Digital Marketing AI",
-    "Efficiency Automation",
+    "reddit marketing",
+    "reddit marketing tool",
+    "reddit lead generation",
+    "b2b lead generation reddit",
+    "lead generation reddit",
+    "find customers on reddit",
+    "marketing automation reddit",
+    "ai marketing reddit",
   ],
   metadataBase: new URL("https://smartpost.co.in"),
   robots: {

@@ -1,17 +1,58 @@
 "use client";
 
-import React from 'react';
-import { X, Phone, MessageSquare } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { Button } from './button';
 
 interface ContactDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    phoneNumber: string;
+    phoneNumber?: string;
 }
 
-export function ContactDialog({ isOpen, onClose, phoneNumber }: ContactDialogProps) {
+export function ContactDialog({ isOpen, onClose }: ContactDialogProps) {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+    const [errorMsg, setErrorMsg] = useState('');
+
     if (!isOpen) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim() || !email.trim()) {
+            setErrorMsg('Please fill out all fields.');
+            setStatus('error');
+            return;
+        }
+
+        setStatus('submitting');
+        setErrorMsg('');
+
+        try {
+            const res = await fetch('/api/waitlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, email }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to submit waitlist signup');
+            }
+
+            setStatus('success');
+            setName('');
+            setEmail('');
+        } catch (err: any) {
+            console.error('Waitlist submission error:', err);
+            setErrorMsg(err.message || 'Something went wrong. Please try again.');
+            setStatus('error');
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -22,50 +63,101 @@ export function ContactDialog({ isOpen, onClose, phoneNumber }: ContactDialogPro
             />
 
             {/* Dialog Content */}
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-up">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-up border border-slate-100">
                 <div className="p-8">
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                        className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-50 cursor-pointer"
                     >
                         <X className="w-5 h-5" />
                     </button>
 
-                    <div className="text-center space-y-6">
-                        <div className="mx-auto w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center">
-                            <Phone className="w-8 h-8 text-green-600" />
-                        </div>
+                    {status === 'success' ? (
+                        <div className="text-center space-y-6 py-6 animate-fade-up">
+                            <div className="mx-auto w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+                                <CheckCircle2 className="w-10 h-10 text-[#ff4500]" />
+                            </div>
 
-                        <div className="space-y-2">
-                            <h2 className="text-2xl font-bold text-slate-900">Contact Our Agency</h2>
-                            <p className="text-slate-500">
-                                Interested in building an AI agent? <br />
-                                Give us a call or message on WhatsApp.
-                            </p>
-                        </div>
+                            <div className="space-y-2">
+                                <h2 className="text-2xl font-bold text-slate-900">You're added to the waitlist!</h2>
+                                <p className="text-slate-500 max-w-xs mx-auto">
+                                    We will mail you when we launch. Keep an eye on your inbox!
+                                </p>
+                            </div>
 
-                        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p className="text-sm font-medium text-slate-500 mb-1">PHONE NUMBER</p>
-                            <p className="text-3xl font-extrabold text-[#111827] tracking-tight">
-                                {phoneNumber}
-                            </p>
+                            <Button 
+                                onClick={onClose}
+                                className="w-full bg-[#ff4500] hover:bg-[#e03d00] text-white rounded-xl py-3 font-semibold transition-all cursor-pointer"
+                            >
+                                Got it, thanks!
+                            </Button>
                         </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                                    <Sparkles className="w-5 h-5 text-[#ff4500]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900">Join the Early Waitlist</h2>
+                                    <p className="text-xs text-slate-500">Get early access when we launch</p>
+                                </div>
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <a href={`tel:+91${phoneNumber.replace(/\s+/g, '')}`} className="w-full">
-                                <Button className="w-full !bg-green-600 hover:!bg-green-700 !text-white rounded-xl">
-                                    <Phone className="w-4 h-4 mr-2" />
-                                    Call Now
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label htmlFor="name" className="text-xs font-semibold text-slate-600 block">
+                                        Your Name
+                                    </label>
+                                    <input
+                                        id="name"
+                                        type="text"
+                                        placeholder="John Doe"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#ff4500]/25 focus:border-[#ff4500] text-slate-800 text-sm transition-all bg-slate-50/50"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label htmlFor="email" className="text-xs font-semibold text-slate-600 block">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        placeholder="john@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#ff4500]/25 focus:border-[#ff4500] text-slate-800 text-sm transition-all bg-slate-50/50"
+                                    />
+                                </div>
+
+                                {status === 'error' && (
+                                    <p className="text-xs text-red-500 font-medium">
+                                        {errorMsg}
+                                    </p>
+                                )}
+
+                                <Button
+                                    type="submit"
+                                    disabled={status === 'submitting'}
+                                    className="w-full bg-[#ff4500] hover:bg-[#e03d00] text-white rounded-xl py-3 font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {status === 'submitting' ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Adding you...
+                                        </>
+                                    ) : (
+                                        'Join Waitlist'
+                                    )}
                                 </Button>
-                            </a>
-                            <a href={`https://wa.me/91${phoneNumber.replace(/\s+/g, '')}`} target="_blank" rel="noopener noreferrer" className="w-full">
-                                <Button className="w-full !bg-[#111827] hover:!bg-slate-800 !text-white rounded-xl">
-                                    <MessageSquare className="w-4 h-4 mr-2" />
-                                    WhatsApp
-                                </Button>
-                            </a>
+                            </form>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

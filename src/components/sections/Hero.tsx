@@ -1,76 +1,62 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
-
-import { ContactDialog } from '@/components/ui/ContactDialog';
 
 export function Hero() {
-    const [isContactOpen, setIsContactOpen] = useState(false);
-    const phoneNumber = "8838235891";
+  const handleStartFree = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent('open-contact-modal'));
+  };
 
-    return (
-        <section className="relative overflow-hidden bg-white min-h-[calc(100vh-72px)] flex items-center justify-center">
-            {/* Subtle background pattern */}
-            <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                    background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34,197,94,0.07) 0%, transparent 70%)',
-                }}
-            />
+  const handleScrollToHowItWorks = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const element = document.getElementById('how-it-works');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
-            <div className="relative container mx-auto px-6 py-12 md:py-24 text-center max-w-4xl">
+  return (
+    <section className="bg-white py-20 md:py-32 flex items-center justify-center">
+      <div className="container mx-auto px-6 max-w-4xl text-center flex flex-col items-center">
+        {/* Reddit Logo SVG */}
+        <div className="mb-6 flex items-center justify-center p-3 bg-red-50 rounded-2xl border border-red-100 shadow-sm animate-bounce duration-1000">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            className="w-12 h-12 text-[#ff4500]"
+            fill="currentColor"
+          >
+            <g>
+              <path d="M17.16 9.33a2.12 2.12 0 0 0-3.56-1.57 8.64 8.64 0 0 0-3.47-.73l.73-2.3 2.38.51a1.27 1.27 0 1 0 .12-.62l-2.62-.57a.32.32 0 0 0-.37.23l-.81 2.58a8.81 8.81 0 0 0-3.56.7l-1.4-1.4a2.12 2.12 0 1 0-2.8 3 4.23 4.23 0 0 0-.12.93c0 2.87 3.51 5.2 7.83 5.2s7.83-2.33 7.83-5.2a4.4 4.4 0 0 0-.12-.91 2.1 2.1 0 0 0 2.55-1.46zM5 10.7a.95.95 0 1 1 .95.95.95.95 0 0 1-.95-.95zm7.3 3.65c-1.12 1.12-3.25 1.12-4.37 0a.32.32 0 1 1 .45-.45c.87.87 2.6.87 3.47 0a.32.32 0 1 1 .45.45zm-.4-2.7a.95.95 0 1 1 .95-.95.95.95 0 0 1-.95.95z" />
+            </g>
+          </svg>
+        </div>
 
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-1.5 text-xs font-semibold text-green-700 mb-10 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                    Custom AI Solutions For Modern Agencies
-                </div>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight max-w-2xl leading-tight">
+          AI Reddit Marketing That Finds Customers For You
+        </h1>
+        
+        <p className="text-lg text-gray-600 mb-8 max-w-xl leading-relaxed">
+          Describe your business and our AI finds the best subreddits, keywords, and conversations where people are already looking for your solution.
+        </p>
 
-                {/* Headline */}
-                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-[#111827] mb-6 leading-[1.08]">
-                    Your life&apos;s works,<br />
-                    powered by <span className="text-[#22c55e]">our life&apos;s work</span>
-                </h1>
-
-                {/* Decorative underline */}
-                <div className="mx-auto w-16 h-1 rounded-full bg-[#22c55e] mb-8" />
-
-                {/* Description */}
-                <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
-                    A unique and powerful AI automation suite to transform the way you work. Designed for businesses of all sizes, built by a company that values your privacy.
-                </p>
-
-                {/* CTA Button */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Button
-                        className="px-10 h-14 !bg-[#22c55e] hover:!bg-green-600 !text-white font-bold text-base rounded-md shadow-lg hover:shadow-xl transition-all"
-                        onClick={() => setIsContactOpen(true)}
-                    >
-                        GET STARTED &nbsp;<ArrowRight className="w-4 h-4 inline" />
-                    </Button>
-                    <Link
-                        href="/#services"
-                        className="inline-flex items-center justify-center rounded-full font-semibold text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 px-10 h-14 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
-                    >
-                        Our Services
-                    </Link>
-                </div>
-
-                {/* Social proof / tagline */}
-                <p className="mt-10 text-sm text-slate-400 font-medium tracking-wide">
-                    Pioneering the future of agency automation · Join our early-access collaboration
-                </p>
-
-            </div>
-
-            <ContactDialog
-                isOpen={isContactOpen}
-                onClose={() => setIsContactOpen(false)}
-                phoneNumber={phoneNumber}
-            />
-        </section>
-    );
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10 w-full sm:w-auto">
+          <button
+            onClick={handleStartFree}
+            className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 bg-red-600 text-white hover:bg-red-500 font-semibold rounded-md shadow-sm transition-colors cursor-pointer"
+          >
+            Start Free <ArrowRight className="ml-1.5 w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={handleScrollToHowItWorks}
+            className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 font-semibold rounded-md shadow-sm transition-colors cursor-pointer"
+          >
+            See How It Works
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }

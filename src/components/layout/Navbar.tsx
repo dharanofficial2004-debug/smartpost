@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ContactDialog } from '@/components/ui/ContactDialog';
@@ -8,6 +8,12 @@ import { ContactDialog } from '@/components/ui/ContactDialog';
 export function Navbar() {
     const [isContactOpen, setIsContactOpen] = useState(false);
     const phoneNumber = "8838235891";
+
+    useEffect(() => {
+        const handleOpen = () => setIsContactOpen(true);
+        window.addEventListener('open-contact-modal', handleOpen);
+        return () => window.removeEventListener('open-contact-modal', handleOpen);
+    }, []);
 
     return (
         <>
@@ -26,21 +32,17 @@ export function Navbar() {
                     </div>
 
                     {/* Center Nav Links */}
-                    <nav className="hidden md:flex items-center gap-10 absolute left-1/2 -translate-x-1/2">
-                        <Link href="/#about" className="text-sm font-medium text-slate-600 hover:text-[#22c55e] transition-colors">About</Link>
-                        <Link href="/#services" className="text-sm font-medium text-slate-600 hover:text-[#22c55e] transition-colors">Services</Link>
-                        <Link href="/#cta" className="text-sm font-medium text-slate-600 hover:text-[#22c55e] transition-colors">Contact</Link>
-                    </nav>
+            {/* Nav links removed for minimalist layout */}
 
                     {/* CTA Button */}
                     <div className="flex items-center gap-3">
                         <Button
-                            variant="primary"
+                            variant="outline"
                             size="sm"
-                            className="px-6 !bg-[#22c55e] hover:!bg-green-600 !text-white rounded-md font-semibold"
+                            className="px-6 bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 rounded-md font-semibold transition-all shadow-sm cursor-pointer"
                             onClick={() => setIsContactOpen(true)}
                         >
-                            Get Started
+                            Start Free
                         </Button>
                     </div>
 

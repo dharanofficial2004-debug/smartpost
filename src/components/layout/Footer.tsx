@@ -6,7 +6,7 @@ export function Footer() {
             <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-medium">
                 <div className="flex items-center gap-1">
                     <Link href="/">
-                        <span className="font-extrabold tracking-tight text-sm text-[#111827]">Smart<span className="text-green-500">Post</span></span>
+                        <span className="font-extrabold tracking-tight text-sm text-[#111827]">Smart<span className="text-primary">Post</span></span>
                     </Link>
                 </div>
 
