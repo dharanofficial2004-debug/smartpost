@@ -63,6 +63,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+      <head>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-BP8LLT90YM"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', 'G-BP8LLT90YM');
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} font-sans antialiased pb-20 md:pb-0`}>
         {children}
         <BottomNav />
