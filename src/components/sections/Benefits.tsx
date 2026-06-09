@@ -24,7 +24,7 @@ const defaultBenefits: BenefitItem[] = [
   },
 ];
 
-export function Benefits({ benefits = [] }: { benefits: BenefitItem[] }) {
+export function Benefits({ benefits = [] }: { benefits?: BenefitItem[] }) {
   const displayBenefits = benefits.length > 0 ? benefits : defaultBenefits;
   const itemCount = displayBenefits.length;
   
