@@ -31,7 +31,7 @@ export function Hero() {
 
                 {/* Headline */}
                 <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-[#111827] mb-6 leading-[1.08]">
-                    Your life&apos;s work,<br />
+                    Your life&apos;s works,<br />
                     powered by <span className="text-[#22c55e]">our life&apos;s work</span>
                 </h1>
 
