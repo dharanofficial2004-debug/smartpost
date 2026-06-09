@@ -55,12 +55,16 @@ export const metadata: Metadata = {
 };
 
 import { BottomNav } from "@/components/layout/BottomNav";
+import { generateOrganizationSchema, generateWebSiteSchema } from "@/lib/seo";
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const orgSchema = generateOrganizationSchema();
+  const webSiteSchema = generateWebSiteSchema();
+
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <head>
@@ -75,6 +79,14 @@ export default function RootLayout({
               gtag('config', 'G-BP8LLT90YM');
             `,
           }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased pb-20 md:pb-0`}>

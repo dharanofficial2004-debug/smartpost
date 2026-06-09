@@ -1,0 +1,10 @@
+# SmartPost
+
+AI Reddit Marketing platform for finding customers on Reddit.
+
+Main pages:
+https://smartpost.co.in/
+https://smartpost.co.in/reddit-marketing
+https://smartpost.co.in/reddit-lead-generation
+
+SmartPost builds custom AI agents for digital marketing agencies. Scale your agency with automated workflows. Describe your business and our AI finds the best subreddits, keywords, and conversations where people are already looking for your solution.

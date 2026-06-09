@@ -1,7 +1,7 @@
 // src/components/sections/FAQ.tsx
 import { HelpCircle } from 'lucide-react';
 
-const faqData = [
+const defaultFaqData = [
   {
     question: "What is Reddit marketing?",
     answer: "Reddit marketing is the practice of promoting your product or service by engaging with relevant subreddits and conversations where your target audience already hangs out.",
@@ -28,7 +28,9 @@ const faqData = [
   },
 ];
 
-export function FAQ() {
+export function FAQ({ customFaqs }: { customFaqs?: { question: string; answer: string }[] } = {}) {
+  const faqData = customFaqs || defaultFaqData;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",

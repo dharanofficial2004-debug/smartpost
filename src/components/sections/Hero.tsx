@@ -2,7 +2,15 @@
 
 import { ArrowRight } from 'lucide-react';
 
-export function Hero() {
+export function Hero({
+  title = "AI Reddit Marketing That Finds Customers For You",
+  subtitle = "Describe your business and our AI finds the best subreddits, keywords, and conversations where people are already looking for your solution.",
+  buttonText = "Start Free",
+}: {
+  title?: string;
+  subtitle?: string;
+  buttonText?: string;
+} = {}) {
   const handleStartFree = (e: React.MouseEvent) => {
     e.preventDefault();
     window.dispatchEvent(new CustomEvent('open-contact-modal'));
@@ -34,11 +42,11 @@ export function Hero() {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight max-w-2xl leading-tight">
-          AI Reddit Marketing That Finds Customers For You
+          {title}
         </h1>
         
         <p className="text-lg text-gray-600 mb-8 max-w-xl leading-relaxed">
-          Describe your business and our AI finds the best subreddits, keywords, and conversations where people are already looking for your solution.
+          {subtitle}
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10 w-full sm:w-auto">
@@ -46,7 +54,7 @@ export function Hero() {
             onClick={handleStartFree}
             className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 bg-red-600 text-white hover:bg-red-500 font-semibold rounded-md shadow-sm transition-colors cursor-pointer"
           >
-            Start Free <ArrowRight className="ml-1.5 w-4 h-4" />
+            {buttonText} <ArrowRight className="ml-1.5 w-4 h-4" />
           </button>
           
           <button
