@@ -3,6 +3,20 @@ import { pseoPages } from '@/lib/pseo-data';
 import { PSEOPageTemplate } from '@/components/layout/PSEOPageTemplate';
 import { Metadata } from 'next';
 
+import dynamic from 'next/dynamic';
+
+const RedditOutreachTool = dynamic(
+  () => import('@/components/RedditOutreachTool'),
+  {
+    loading: () => (
+      <div className="w-full h-64 animate-pulse bg-gray-100 rounded-xl flex items-center justify-center">
+        <p className="text-gray-400 text-sm">Loading Reddit search tool...</p>
+      </div>
+    )
+  }
+);
+
+
 export const metadata: Metadata = constructMetadata({
   title: "Reddit Marketing | SmartPost",
   description: "Find customers automatically with our reddit marketing platform. SmartPost uses AI to find high-intent leads on Reddit.",
@@ -39,6 +53,12 @@ export default function Page() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
       <PSEOPageTemplate
+        redditTool={
+          <RedditOutreachTool 
+            defaultKeyword="reddit marketing help"
+            pageContext="reddit-marketing"
+          />
+        }
         hero={hero}
         seoContent={seoContent}
         finalCta={finalCta}

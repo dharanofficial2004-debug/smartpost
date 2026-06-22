@@ -8,6 +8,7 @@ import { FAQ } from "@/components/sections/FAQ";
 import { PricingPreview } from "@/components/sections/PricingPreview";
 import { FinalCTA } from "@/components/sections/FinalCTA";
 import { Footer } from "@/components/layout/Footer";
+import { ReactNode } from "react";
 
 export interface PSEOPageProps {
   hero: {
@@ -27,6 +28,7 @@ export interface PSEOPageProps {
   benefits?: { title: string; description: string }[];
   relatedPages?: { title: string; slug: string }[];
   subreddits?: string[];
+  redditTool?: ReactNode;
 }
 
 export function PSEOPageTemplate({
@@ -37,12 +39,18 @@ export function PSEOPageTemplate({
   benefits = [],
   relatedPages = [],
   subreddits = [],
+  redditTool,
 }: PSEOPageProps) {
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <Navbar />
       <main className="flex-1">
         <Hero title={hero.title} subtitle={hero.subtitle} buttonText={hero.buttonText} />
+        {redditTool && (
+          <div className="relative z-10 -mt-8 mb-12">
+            {redditTool}
+          </div>
+        )}
         <HowItWorks />
         <FeaturesGrid />
         {seoContent && (

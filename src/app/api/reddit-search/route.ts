@@ -75,45 +75,57 @@ async function fetchSingleRSS(
   url: string,
 ): Promise<RedditSearchPost[]> {
   let xml = '';
-  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+  // Use a dedicated API-compliant user agent instead of spoofing Chrome to avoid 429 Too Many Requests
+  const ua = 'web:com.smartpost.tool:v1.0.0 (by /u/smartpost)';
 
   console.log(`\n[fetchSingleRSS] Fetching RSS URL: ${url}`);
 
-  // 1. Try standard fetch first
-  try {
-    console.log(`[fetchSingleRSS] Attempting HTTP fetch...`);
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': ua,
-        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      signal: AbortSignal.timeout(6000),
-      cache: 'no-store',
-    });
-
-    console.log(`[fetchSingleRSS] HTTP status: ${res.status} ${res.statusText}`);
-    if (res.ok) {
-      xml = await res.text();
-      console.log(`[fetchSingleRSS] HTTP fetch succeeded, content length: ${xml.length} bytes`);
-    } else {
-      console.warn(`[fetchSingleRSS] HTTP fetch returned non-ok status. Trying curl fallback...`);
-    }
-  } catch (err: any) {
-    console.error(`[fetchSingleRSS] HTTP fetch failed: ${err?.message || err}. Trying curl fallback...`);
-  }
-
-  // 2. Try curl fallback if standard fetch did not get the feed
-  if (!xml || (!xml.includes('<feed') && !xml.includes('<rss'))) {
-    try {
-      console.log(`[fetchSingleRSS] Running curl command fallback...`);
-      const { stdout } = await execAsync(`curl -s -L --max-time 8 -A "${ua}" "${url}"`, {
-        maxBuffer: 1024 * 1024 * 10
+  const fetchHttps = (targetUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const https = require('https');
+      const req = https.get(targetUrl, {
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+        }
+      }, (res: any) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return resolve(fetchHttps(res.headers.location));
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP Status ${res.statusCode}`));
+        }
+        let data = '';
+        res.on('data', (chunk: any) => { data += chunk; });
+        res.on('end', () => { resolve(data); });
       });
-      xml = stdout;
-      console.log(`[fetchSingleRSS] Curl command succeeded, content length: ${xml.length} bytes`);
+      req.on('error', reject);
+      req.setTimeout(8000, () => {
+        req.destroy();
+        reject(new Error('Request Timeout'));
+      });
+    });
+  };
+
+  const subdomains = ['www.reddit.com', 'old.reddit.com', 'ns.reddit.com', 'pay.reddit.com'];
+  let lastError = null;
+
+  for (const subdomain of subdomains) {
+    const currentUrl = url.replace('www.reddit.com', subdomain);
+    try {
+      console.log(`[fetchSingleRSS] Attempting native HTTPS fetch on ${subdomain}...`);
+      xml = await fetchHttps(currentUrl);
+      if (xml && (xml.includes('<feed') || xml.includes('<rss'))) {
+        console.log(`[fetchSingleRSS] HTTPS fetch succeeded via ${subdomain}, content length: ${xml.length} bytes`);
+        break; // Success! Exit loop.
+      } else {
+        console.warn(`[fetchSingleRSS] Received data but it's not a valid RSS feed. Retrying...`);
+      }
     } catch (err: any) {
-      console.error(`[fetchSingleRSS] Curl fallback failed:`, err?.message || err);
+      lastError = err;
+      console.warn(`[fetchSingleRSS] HTTPS fetch failed on ${subdomain}: ${err?.message || err}.`);
+      await new Promise(r => setTimeout(r, 600)); // Sleep before retry
     }
   }
 
@@ -271,7 +283,11 @@ export async function POST(req: NextRequest) {
 
     const posts = await fetchRedditRSS(keyword, subreddits, sortBy, dateRange);
 
-    return NextResponse.json({ posts, total: posts.length });
+    return NextResponse.json({ 
+      posts, 
+      totalFound: posts.length,
+      searchedAt: new Date().toISOString()
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[reddit-search]', msg);
