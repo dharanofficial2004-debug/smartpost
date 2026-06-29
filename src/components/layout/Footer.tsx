@@ -174,9 +174,19 @@ export function Footer() {
               Smart<span className="text-primary">Post</span>
             </span>
           </Link>
-          <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} SmartPost. All rights reserved.
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-xs text-gray-400">
+              &copy; {new Date().getFullYear()} SmartPost. All rights reserved.
+            </p>
+            <a
+              href="https://bankstatementtoexcelconverter.com"
+              target="_blank"
+              rel="noopener"
+              className="text-xs text-gray-500 hover:text-primary transition-colors"
+            >
+              Also by us &rarr; Bank Statement Converter
+            </a>
+          </div>
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">
               Privacy Policy
