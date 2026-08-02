@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
-// ── types ────────────────────────────────────────────────────────────────────
+// ── types ─────────────────────────────────────────────────────────────────────
 
 export interface RedditSearchPost {
   id: string;
@@ -19,129 +15,72 @@ export interface RedditSearchPost {
   author: string;
 }
 
-type DateRange = '24h' | '7d' | '30d' | '3m' | '6m';
-type SortBy = 'new' | 'top' | 'comments';
+type DateRange  = '24h' | '7d' | '30d' | '3m' | '6m';
+type SortBy     = 'new' | 'top' | 'comments';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-function mapTimeFilter(dateRange: DateRange): string {
-  return { '24h': 'day', '7d': 'week', '30d': 'month', '3m': 'year', '6m': 'year' }[dateRange];
-}
-
-// Reddit only respects t= when sort=top or sort=relevance — NOT with sort=new.
-// We use sort=relevance when a time filter is active so t= is honoured.
-// For sort=new with no meaningful time filter we keep sort=new.
-function effectiveSort(sortBy: SortBy, dateRange: DateRange): string {
-  if (sortBy === 'new' && dateRange !== '6m') {
-    // Force relevance so t= is respected; newest-first within window
-    return 'relevance';
-  }
-  return { new: 'new', top: 'top', comments: 'top' }[sortBy];
+// Reddit only honours t= with sort=relevance or sort=top, NOT sort=new
+function buildParams(sortBy: SortBy, dateRange: DateRange): { sort: string; t: string } {
+  const t = ({ '24h': 'day', '7d': 'week', '30d': 'month', '3m': 'year', '6m': 'year' } as Record<DateRange,string>)[dateRange];
+  // force relevance so t= is always respected
+  const sort = sortBy === 'top' ? 'top' : 'relevance';
+  return { sort, t };
 }
 
 function timeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
+  const s = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (s < 60)   return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  const d = Math.floor(s/86400);
+  if (d < 30)  return `${d}d ago`;
+  const mo = Math.floor(d/30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(mo/12)}y ago`;
 }
 
 function extractTag(xml: string, tag: string): string {
-  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
-  return match?.[1]?.trim() ?? '';
+  const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
+  return m?.[1]?.trim() ?? '';
 }
 
 function decodeXml(str: string): string {
   return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
 }
 
-// ── RSS fetcher (same working implementation as validate-idea route) ──────────
+// ── single RSS page fetch ─────────────────────────────────────────────────────
 
-async function fetchSingleRSS(
-  url: string,
-): Promise<RedditSearchPost[]> {
-  let xml = '';
-  // Use a dedicated API-compliant user agent instead of spoofing Chrome to avoid 429 Too Many Requests
-  const ua = 'web:com.smartpost.tool:v1.0.0 (by /u/smartpost)';
+async function fetchRSSPage(url: string): Promise<{ posts: RedditSearchPost[]; nextCursor: string | null }> {
+  console.log(`[reddit-search] GET ${url}`);
 
-  console.log(`\n[fetchSingleRSS] Fetching RSS URL: ${url}`);
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    signal: AbortSignal.timeout(10000),
+    cache: 'no-store',
+  });
 
-  const fetchHttps = (targetUrl: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const https = require('https');
-      const req = https.get(targetUrl, {
-        headers: {
-          'User-Agent': ua,
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-        }
-      }, (res: any) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return resolve(fetchHttps(res.headers.location));
-        }
-        if (res.statusCode !== 200) {
-          return reject(new Error(`HTTP Status ${res.statusCode}`));
-        }
-        let data = '';
-        res.on('data', (chunk: any) => { data += chunk; });
-        res.on('end', () => { resolve(data); });
-      });
-      req.on('error', reject);
-      req.setTimeout(8000, () => {
-        req.destroy();
-        reject(new Error('Request Timeout'));
-      });
-    });
-  };
-
-  const subdomains = ['www.reddit.com', 'old.reddit.com', 'ns.reddit.com', 'pay.reddit.com'];
-  let lastError = null;
-
-  for (const subdomain of subdomains) {
-    const currentUrl = url.replace('www.reddit.com', subdomain);
-    try {
-      console.log(`[fetchSingleRSS] Attempting native HTTPS fetch on ${subdomain}...`);
-      xml = await fetchHttps(currentUrl);
-      if (xml && (xml.includes('<feed') || xml.includes('<rss'))) {
-        console.log(`[fetchSingleRSS] HTTPS fetch succeeded via ${subdomain}, content length: ${xml.length} bytes`);
-        break; // Success! Exit loop.
-      } else {
-        console.warn(`[fetchSingleRSS] Received data but it's not a valid RSS feed. Retrying...`);
-      }
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`[fetchSingleRSS] HTTPS fetch failed on ${subdomain}: ${err?.message || err}.`);
-      await new Promise(r => setTimeout(r, 600)); // Sleep before retry
-    }
+  if (!res.ok) {
+    console.log(`[reddit-search] HTTP ${res.status}`);
+    return { posts: [], nextCursor: null };
   }
 
-  if (!xml || (!xml.includes('<feed') && !xml.includes('<rss'))) {
-    console.error(`[fetchSingleRSS] Failed to retrieve valid RSS/Atom feed content from URL: ${url}`);
-    if (xml) {
-      console.error(`[fetchSingleRSS] Content snippet received (first 300 chars):`, xml.slice(0, 300));
-    }
-    return [];
-  }
-
+  const xml = await res.text();
   const posts: RedditSearchPost[] = [];
-  const entryMatches = xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g);
 
-  let parsedCount = 0;
-  let skippedCount = 0;
+  // Extract the "after" cursor from the feed id for next-page pagination
+  // Reddit Atom feed includes it in <id> like: /search.rss?...&after=t3_xxxxx
+  const afterMatch = xml.match(/after=(t3_[a-z0-9]+)/);
+  const nextCursor = afterMatch?.[1] ?? null;
+
+  const entryMatches = xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g);
 
   for (const match of entryMatches) {
     const block = match[1];
@@ -149,156 +88,86 @@ async function fetchSingleRSS(
     const title = decodeXml(extractTag(block, 'title'));
     const linkAttrMatch = block.match(/<link[^>]+href="([^"]+)"/);
     const link = linkAttrMatch?.[1] ?? '';
-    if (!title || !link) {
-      skippedCount++;
-      continue;
-    }
-
-    // Skip subreddit community entries — must be an actual post with /comments/
-    if (!link.includes('/comments/')) {
-      skippedCount++;
-      continue;
-    }
-    if (title === '[deleted]' || title === '[removed]') {
-      skippedCount++;
-      continue;
-    }
+    if (!title || !link || !link.includes('/comments/')) continue;
+    if (title === '[deleted]' || title === '[removed]') continue;
 
     const atomIdMatch = block.match(/<id>t3_([a-z0-9]+)<\/id>/);
     const linkIdMatch = link.match(/\/comments\/([a-z0-9]+)\//);
     const id = atomIdMatch?.[1] ?? linkIdMatch?.[1];
-    if (!id) {
-      skippedCount++;
-      continue;
-    }
+    if (!id) continue;
 
     const rawContent = extractTag(block, 'content');
-    const plainContent = decodeXml(rawContent)
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Do NOT skip posts just because the body text is short/empty (e.g. link/image posts)
-    const bodyText = plainContent || '';
+    const body = decodeXml(rawContent).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
     const categoryMatch = block.match(/<category[^>]+term="([^"]+)"/);
-    const subredditFromLink = link.match(/reddit\.com\/r\/([^/]+)\//);
-    const postSubreddit = categoryMatch?.[1] ?? subredditFromLink?.[1] ?? 'reddit';
+    const srFromLink = link.match(/reddit\.com\/r\/([^/]+)\//);
+    const subreddit = categoryMatch?.[1] ?? srFromLink?.[1] ?? 'reddit';
 
     const authorMatch = block.match(/<name>([^<]+)<\/name>/);
-    const author = authorMatch?.[1]?.replace('/u/', '') ?? 'unknown';
+    const author = (authorMatch?.[1] ?? 'unknown').replace('/u/', '');
 
-    const updatedMatch = block.match(/<updated>([^<]+)<\/updated>/) ??
-                         block.match(/<published>([^<]+)<\/published>/);
-    const createdAt = updatedMatch?.[1] ? new Date(updatedMatch[1]) : new Date();
-    const fullUrl = link.replace(/\?.*$/, '');
+    const dateMatch = block.match(/<updated>([^<]+)<\/updated>/) ?? block.match(/<published>([^<]+)<\/published>/);
+    const createdAt = dateMatch?.[1] ? new Date(dateMatch[1]) : new Date();
 
     posts.push({
-      id,
-      title,
-      body: bodyText.slice(0, 500),
-      fullUrl,
-      subreddit: postSubreddit,
-      upvotes: 1, // Default to 1
-      commentCount: 0, // Default to 0
-      createdAt,
-      timeAgo: timeAgo(createdAt),
-      author,
+      id, title,
+      body: body.slice(0, 500),
+      fullUrl: link.replace(/\?.*$/, ''),
+      subreddit, upvotes: 1, commentCount: 0,
+      createdAt, timeAgo: timeAgo(createdAt), author,
     });
-    parsedCount++;
   }
 
-  console.log(`[fetchSingleRSS] Done. Parsed: ${parsedCount}, Skipped: ${skippedCount} entries.`);
-  return posts;
+  console.log(`[reddit-search] Parsed ${posts.length} posts`);
+  return { posts, nextCursor: posts.length > 0 ? posts[posts.length - 1].id : null };
 }
 
-// Fetch Reddit posts using the RSS search endpoint (highly reliable, no rate limits)
-async function fetchRedditRSS(
-  keyword: string,
-  subreddits: string[],
-  sortBy: SortBy,
-  dateRange: DateRange,
-): Promise<RedditSearchPost[]> {
-  const t = mapTimeFilter(dateRange);
-  const sort = effectiveSort(sortBy, dateRange);
-
-  console.log(`\n--- [reddit-search] STARTING RSS SEARCH ---`);
-  console.log(`[reddit-search] Keyword: "${keyword}"`);
-  console.log(`[reddit-search] Subreddits: ${JSON.stringify(subreddits)}`);
-  console.log(`[reddit-search] Sort: "${sort}", Time filter: "${t}"`);
-
-  let urls: string[] = [];
-
-  if (subreddits.length === 0) {
-    const q = encodeURIComponent(keyword);
-    urls = [`https://www.reddit.com/search.rss?q=${q}&sort=${sort}&t=${t}&limit=100`];
-  } else {
-    // Reddit RSS search supports OR logic inside queries
-    const subredditFilter = subreddits.map(s => `subreddit:${s}`).join(' OR ');
-    const q = encodeURIComponent(`${keyword} (${subredditFilter})`);
-    urls = [`https://www.reddit.com/search.rss?q=${q}&sort=${sort}&t=${t}&limit=100`];
-  }
-
-  console.log(`[reddit-search] Formed search URLs:`, urls);
-
-  const results = await Promise.all(urls.map(fetchSingleRSS));
-  const seen = new Set<string>();
-  const posts: RedditSearchPost[] = [];
-  
-  for (const batch of results) {
-    for (const post of batch) {
-      if (!seen.has(post.id)) {
-        seen.add(post.id);
-        posts.push(post);
-      }
-    }
-  }
-
-  console.log(`[reddit-search] Deduplicated total posts found: ${posts.length}`);
-  console.log(`--- [reddit-search] END RSS SEARCH ---\n`);
-  return posts;
-}
-
-
-
-
-// ── POST handler ─────────────────────────────────────────────────────────────
+// ── POST handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const keyword: string = (body?.keyword ?? '').trim();
+    const keyword: string    = (body?.keyword ?? '').trim();
     const subredditRaw: string = (body?.subreddit ?? '').trim();
-    const dateRange: DateRange = body?.dateRange ?? '30d';
-    const sortBy: SortBy = body?.sortBy ?? 'new';
+    const dateRange: DateRange = body?.dateRange  ?? '30d';
+    const sortBy: SortBy       = body?.sortBy     ?? 'new';
+    const limit: number        = Math.min(Math.max(Number(body?.limit ?? 25), 25), 100);
+    // afterId is the last post ID from the previous page — used for pagination
+    const afterId: string | undefined = body?.afterId || undefined;
 
     if (!keyword || keyword.length < 2) {
       return NextResponse.json({ error: 'Please enter a keyword to search.' }, { status: 400 });
     }
 
-    // Support comma-separated subreddits
     const subreddits = subredditRaw
-      ? subredditRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5)
+      ? subredditRaw.split(',').map((s: string) => s.trim()).filter(Boolean).slice(0, 5)
       : [];
 
-    const posts = await fetchRedditRSS(keyword, subreddits, sortBy, dateRange);
+    const { sort, t } = buildParams(sortBy, dateRange);
 
-    return NextResponse.json({ 
-      posts, 
-      totalFound: posts.length,
-      searchedAt: new Date().toISOString()
-    });
+    let q: string;
+    if (subreddits.length === 0) {
+      q = encodeURIComponent(keyword);
+    } else {
+      const srFilter = subreddits.map((s: string) => `subreddit:${s}`).join(' OR ');
+      q = encodeURIComponent(`${keyword} (${srFilter})`);
+    }
+
+    // Build URL — add after= for pagination pages
+    let url = `https://www.reddit.com/search.rss?q=${q}&sort=${sort}&t=${t}&limit=${limit}`;
+    if (afterId) url += `&after=t3_${afterId}`;
+
+    const { posts } = await fetchRSSPage(url);
+
+    const lastId = posts.length > 0 ? posts[posts.length - 1].id : null;
+    const hasMore = posts.length === limit;
+
+    console.log(`[reddit-search] Returning ${posts.length} posts, hasMore: ${hasMore}`);
+
+    return NextResponse.json({ posts, total: posts.length, hasMore, lastId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[reddit-search]', msg);
-
-    if (msg.includes('timeout') || msg.includes('AbortError')) {
-      return NextResponse.json(
-        { error: 'Reddit search timed out. Please try again.' },
-        { status: 504 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Something went wrong. Please try again.' },
       { status: 500 }
